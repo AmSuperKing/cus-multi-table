@@ -2,7 +2,7 @@
 
 `MultiTable` 是一个功能丰富的高性能 Vue3 表格组件，支持多级表头、列拖拽、固定列、行选择（单选/多选）、子行展开、自定义样式及主题色等特性。
 
-[MultiTable源码](https://github.com/AmSuperKing/vue3-elementplus-admin/tree/main/src/views/table/components/MultiTable)
+[MultiTable源码](https://github.com/AmSuperKing/cus-multi-table)
 
 ## 📦 TypeScript 类型定义
 
@@ -330,8 +330,8 @@ function getSelected() {
 
 <script setup lang="ts">
 import { ref } from 'vue'
-import MultiTable from 'MultiTable'
-import type { ColumnConfig } from 'MultiTable/types'
+import { MultiTable } from 'cus-multi-table'
+import type { ColumnConfig } from 'cus-multi-table'
 
 const selectable = ref(true)
 const selectMode = ref<'radio' | 'checkbox'>('checkbox')

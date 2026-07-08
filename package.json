@@ -1,7 +1,7 @@
 {
   "name": "cus-multi-table",
   "type": "module",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Multidimensional data render to table. A Vue 3 component with TypeScript built with Vite",
   "main": "dist/cus-multi-table.umd.js",
   "module": "dist/cus-multi-table.es.js",
@@ -19,7 +19,7 @@
   "author": "amsuperking <amsuperking@qq.com>",
   "repository": {
     "type": "github",
-    "url": "git+https://github.com/AmSuperKing/vue3-elementplus-admin.git#main"
+    "url": "git+https://github.com/AmSuperKing/cus-multi-table.git#main"
   },
   "license": "MIT",
   "peerDependencies": {
