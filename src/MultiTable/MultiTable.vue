@@ -4,7 +4,8 @@
     class="multi-table-layout"
     :class="{
       'multi-table-layout__small': props.size === 'small',
-      'multi-table-layout__large': props.size === 'large'
+      'multi-table-layout__large': props.size === 'large',
+      'multi-table-layout--highlight-selected': props.highlightSlectedRow
     }"
     :style="styleMethods.tableConfigStyle.value"
   >
@@ -59,14 +60,27 @@
               </td>
             </tr>
           </tbody>
+
+          <!-- 总结行（与表格列对齐，sticky 底部） -->
+          <SummaryRow
+            v-if="props.showSummary && !$slots.summary"
+            :show-summary="props.showSummary"
+            :size="props.size"
+            :leaf-columns="columnMethods.leafColumns.value"
+            :last-column-key="columnMethods.lastColumnKey.value ?? ''"
+            :summary-cells="summaryMethods.summaryCells.value"
+            :get-summary-cell-style="styleMethods.getSummaryCellStyle"
+          >
+            <template #[key]="slotProps" v-for="(_, key) in $slots" :key="key">
+              <slot :name="key" v-bind="slotProps"></slot>
+            </template>
+          </SummaryRow>
         </table>
       </div>
 
-      <!-- 总结行 (内部) -->
-      <div v-if="props.showSummary && props.summaryFitTableContentWith" class="multi-table__summary">
-        <slot name="summary">
-          <div class="multi-table__summary-text">{{ props.summary }}</div>
-        </slot>
+      <!-- 总结行（内部：自定义 slot 充满宽度） -->
+      <div v-if="props.showSummary && props.summaryFitTableContentWidth && $slots.summary" class="multi-table__summary">
+        <slot name="summary"></slot>
       </div>
 
       <!-- 固定列阴影 -->
@@ -84,11 +98,9 @@
       />
     </div>
 
-    <!-- 总结行 (外部) -->
-    <div v-if="props.showSummary && !props.summaryFitTableContentWith" class="multi-table__summary">
-      <slot name="summary">
-        <div class="multi-table__summary-text">{{ props.summary }}</div>
-      </slot>
+    <!-- 总结行 (外部：自定义 slot 且非充满宽度时) -->
+    <div v-if="props.showSummary && !props.summaryFitTableContentWidth && $slots.summary" class="multi-table__summary">
+      <slot name="summary"></slot>
     </div>
 
     <!-- 表尾 -->
@@ -107,8 +119,11 @@ import { useSelection } from './composables/useSelection'
 import { useRowExpand } from './composables/useRowExpand'
 import { useTableEvents } from './composables/useTableEvents'
 import { useTableStyles } from './composables/useTableStyles'
+import { useSort } from './composables/useSort'
+import { useSummary } from './composables/useSummary'
 import TableHeader from './TableHeader.vue'
 import TableRow from './TableRow.vue'
+import SummaryRow from './SummaryRow.vue'
 import "./style.css"
 
 const props = withDefaults(
@@ -125,8 +140,11 @@ const props = withDefaults(
     selectedRowKeys: () => [],
     showIndex: false,
     indexColumnWidth: 80,
-    summaryFitTableContentWith: false,
+    summaryFitTableContentWidth: false,
     cellTextEllipsis: true,
+    collapsibleSubRow: false,
+    defaultSubRowExpanded: false,
+    expandColumnWidth: 44,
   }
 )
 
@@ -145,13 +163,19 @@ const columnsRef = toRef(props, 'columns')
 const selectableRef = toRef(props, 'selectable')
 const showIndexRef = toRef(props, 'showIndex')
 const indexColumnWidthRef = toRef(props, 'indexColumnWidth')
-const columnMethods = useColumns(columnsRef, resizableMethods.widthOverrides, selectableRef, { showIndex: showIndexRef, indexColumnWidth: indexColumnWidthRef })
+const collapsibleRef = toRef(props, 'collapsibleSubRow')
+const defaultSubRowExpandedRef = toRef(props, 'defaultSubRowExpanded')
+const expandColumnWidthRef = toRef(props, 'expandColumnWidth')
+const columnMethods = useColumns(columnsRef, resizableMethods.widthOverrides, selectableRef, { showIndex: showIndexRef, indexColumnWidth: indexColumnWidthRef }, collapsibleRef, expandColumnWidthRef)
 
 // 3. 选择逻辑
 const selectionMethods = useSelection(tableData, props, emit)
 
 // 4. 子行展开逻辑
-const expandMethods = useRowExpand(tableData, columnsRef, selectionMethods.getRowKey)
+const expandMethods = useRowExpand(tableData, columnsRef, selectionMethods.getRowKey, collapsibleRef, defaultSubRowExpandedRef)
+
+// 4.1 排序逻辑（每列独立状态）
+const sortMethods = useSort(emit)
 
 // 5. 事件处理逻辑
 const eventMethods = useTableEvents(
@@ -177,6 +201,15 @@ const styleMethods = useTableStyles(
   columnMethods.getLeftOffset
 )
 
+// 7. 总结行自动计算
+const summaryMethods = useSummary(
+  props,
+  columnMethods.leafColumns,
+  expandMethods.fullExpandedRows,
+  expandMethods.resolveCellValue,
+  expandMethods.shouldRenderCell
+)
+
 // 组装传递给 TableHeader 的 Props 和 Events
 const headerProps = computed(() => ({
   showHeader: props.showHeader,
@@ -194,10 +227,12 @@ const headerProps = computed(() => ({
   getHeaderCellStyle: styleMethods.getHeaderCellStyle,
   onResizeMouseDown: resizableMethods.onResizeMouseDown,
   getEffectiveWidth: resizableMethods.getEffectiveWidth,
+  getSortOrder: sortMethods.getSortOrder,
 }))
 
 const headerEvents = {
   toggleSelectAll: selectionMethods.toggleSelectAll,
+  headerSort: sortMethods.toggleSort,
 }
 
 // 组装传递给 TableRow 的 Props 和 Events
@@ -231,6 +266,7 @@ const rowEvents = {
   cellMouseEnter: eventMethods.onCellMouseEnter,
   cellMouseLeave: eventMethods.onCellMouseLeave,
   toggleSelection: selectionMethods.toggleSelection,
+  toggleExpand: expandMethods.toggleRowExpand,
 }
 
 // ================= Expose =================
@@ -272,6 +308,17 @@ defineExpose({
   toggleRowSelection: selectionMethods.toggleRowSelection,
   getHalfSelectionRows: selectionMethods.getHalfSelectionRows,
   setCurrentRow: selectionMethods.setCurrentRow,
+  // 排序相关
+  sortStates: sortMethods.sortStates,
+  getSortOrder: sortMethods.getSortOrder,
+  toggleSort: sortMethods.toggleSort,
+  clearSort: sortMethods.clearSort,
+  // 总结行相关
+  summaryCells: summaryMethods.summaryCells,
+  // 子行折叠/展开相关
+  isRowExpanded: expandMethods.isRowExpanded,
+  toggleRowExpand: expandMethods.toggleRowExpand,
+  setAllExpanded: expandMethods.setAllExpanded,
   scrollTo,
   setScrollTop,
   setScrollLeft,

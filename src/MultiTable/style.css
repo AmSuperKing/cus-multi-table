@@ -106,6 +106,7 @@
   align-items: center;
   justify-content: inherit;
   min-height: 22px;
+  width: 100%;
 }
 
 .th-title {
@@ -150,28 +151,38 @@
 
 .multi-table__row.is-row-hover {
   background-color: var(--table-row-hover-bg, #f5f7fa);
-  transition: background-color .3s;
+  transition: background-color .12s;
 }
 
 .multi-table__row.is-stripe {
   background-color: var(--table-row-stripe-color, #fafafa);
 }
 
-.multi-table__row.is-selected {
+/* 选中行高亮：仅当外层容器启用 highlightSlectedRow 时应用 */
+.multi-table-layout--highlight-selected .multi-table__row.is-selected {
   background-color: var(--table-row-selected-bg);
 }
 
-.multi-table__row.is-selected .multi-table__td {
+.multi-table-layout--highlight-selected .multi-table__row.is-selected .multi-table__td {
   background-color: var(--table-row-selected-bg);
 }
 .multi-table__row.is-row-hover:not(.is-selected) .multi-table__td {
   background-color: var(--table-row-hover-bg);
-  transition: background-color .3s;
+  transition: background-color .12s;
+}
+/* 未启用 highlightSlectedRow 时，选中行 hover 也需显示 rowHoverBg */
+.multi-table-layout:not(.multi-table-layout--highlight-selected) .multi-table__row.is-selected.is-row-hover {
+  background-color: var(--table-row-hover-bg);
+  transition: background-color .12s;
+}
+.multi-table-layout:not(.multi-table-layout--highlight-selected) .multi-table__row.is-selected.is-row-hover .multi-table__td {
+  background-color: var(--table-row-hover-bg);
+  transition: background-color .12s;
 }
 
 .multi-table__row.is-stripe.is-row-hover {
   background-color: var(--table-row-hover-bg, #f5f7fa);
-  transition: background-color .3s;
+  transition: background-color .12s;
 }
 
 .multi-table__td {
@@ -210,6 +221,32 @@
   padding: 14px 12px;
 }
 
+/* 折叠/展开列 */
+.multi-table__expand-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+}
+
+.multi-table__expand-caret {
+  width: 0;
+  height: 0;
+  border-style: solid;
+  border-width: 5px 0 5px 7px;
+  border-color: transparent transparent transparent var(--table-primary-color, #1890ff);
+  transition: transform 0.2s ease;
+}
+
+.multi-table__expand-btn.is-expanded .multi-table__expand-caret {
+  transform: rotate(90deg);
+}
+
 .multi-table__td.is-hover-cell,
 .multi-table__row.is-row-hover:not(.is-row-hover) .multi-table__td {
   background-color: var(--table-row-hover-bg, #f5f7fa);
@@ -238,12 +275,17 @@
   background-color: var(--table-row-hover-bg, #f5f7fa);
 }
 
-.multi-table__row.is-selected .multi-table__td.is-fixed-left,
-.multi-table__row.is-selected .multi-table__td.is-fixed-right,
-.multi-table__row.is-selected.is-row-hover .multi-table__td.is-fixed-left,
-.multi-table__row.is-selected.is-row-hover .multi-table__td.is-fixed-right {
+.multi-table-layout--highlight-selected .multi-table__row.is-selected .multi-table__td.is-fixed-left,
+.multi-table-layout--highlight-selected .multi-table__row.is-selected .multi-table__td.is-fixed-right,
+.multi-table-layout--highlight-selected .multi-table__row.is-selected.is-row-hover .multi-table__td.is-fixed-left,
+.multi-table-layout--highlight-selected .multi-table__row.is-selected.is-row-hover .multi-table__td.is-fixed-right {
   background-color: var(--table-row-selected-bg);
   opacity: 1;
+}
+/* 未启用 highlightSlectedRow 时，固定列在选中行 hover 时也显示 rowHoverBg */
+.multi-table-layout:not(.multi-table-layout--highlight-selected) .multi-table__row.is-selected.is-row-hover .multi-table__td.is-fixed-left,
+.multi-table-layout:not(.multi-table-layout--highlight-selected) .multi-table__row.is-selected.is-row-hover .multi-table__td.is-fixed-right {
+  background-color: var(--table-row-hover-bg);
 }
 
 .td-content {
@@ -312,6 +354,79 @@ multi-table__summary-small {
 }
 multi-table__summary-large {
   font-size: 16px;
+}
+
+/* 总结行 tfoot（列对齐 + sticky 底部） */
+.multi-table__summary-tfoot {
+  position: sticky;
+  bottom: 0;
+  z-index: 4;
+  background-color: var(--table-summary-bg, #fafafa);
+}
+.multi-table__summary-row {
+  background-color: var(--table-summary-bg, #fafafa);
+}
+.multi-table__summary-td {
+  padding: 10px 16px;
+  font-weight: 600;
+  color: var(--table-summary-color, #333);
+  background-color: var(--table-summary-bg, #fafafa);
+  border-top: 1px solid var(--table-border-color, #e8e8e8);
+  border-bottom: none;
+}
+.multi-table__summary-td-small {
+  padding: 5px 8px;
+}
+.multi-table__summary-td-large {
+  padding: 14px 20px;
+}
+/* 固定列 summary 保持背景不透明 */
+.multi-table__summary-td.is-fixed-left,
+.multi-table__summary-td.is-fixed-right {
+  background-color: var(--table-summary-bg, #fafafa);
+  z-index: 5;
+}
+
+/* 排序相关 */
+.multi-table__th.is-sortable {
+  cursor: pointer;
+  user-select: none;
+}
+.multi-table__th.is-sortable .th-content:hover .th-title {
+  color: var(--table-primary-color, #1890ff);
+}
+.multi-table__th.is-sort-asc .sort-caret--asc,
+.multi-table__th.is-sort-desc .sort-caret--desc {
+  /* 高亮颜色已在 .sort-caret.active 中处理，此处可预留扩展位 */
+}
+.sort-caret-wrapper {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 18px;
+  margin-left: 6px;
+  flex-shrink: 0;
+}
+.sort-caret {
+  width: 0;
+  height: 0;
+  border-left: 5px solid transparent;
+  border-right: 5px solid transparent;
+  transition: border-color .15s ease;
+}
+.sort-caret--asc {
+  border-bottom: 5px solid #c0c4cc;
+  margin-bottom: 2px;
+}
+.sort-caret--asc.active {
+  border-bottom-color: var(--table-primary-color, #1890ff);
+}
+.sort-caret--desc {
+  border-top: 5px solid #c0c4cc;
+}
+.sort-caret--desc.active {
+  border-top-color: var(--table-primary-color, #1890ff);
 }
 
 /* 空数据 */

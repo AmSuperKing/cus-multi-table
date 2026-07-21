@@ -1,12 +1,38 @@
 // useRowExpand.ts
-import { computed, type Ref } from 'vue'
+import { computed, ref, type Ref } from 'vue'
 import type { ColumnConfig, LeafColumn, ExpandedRow } from '../types'
 
 export function useRowExpand(
   tableData: Ref<Record<string, unknown>[]>,
   columns: Ref<ColumnConfig[]>,
-  getRowKey: (row: Record<string, unknown>) => string | number
+  getRowKey: (row: Record<string, unknown>) => string | number,
+  collapsible?: Ref<boolean>,
+  defaultExpanded?: Ref<boolean>
 ) {
+  // 每行折叠/展开状态，一对一维护（key 为 rowKey）
+  const expandStateMap = ref<Record<string | number, boolean>>({})
+
+  /** 读取某行的展开状态；未显式设置时回退到默认值 */
+  function isRowExpanded(rowKey: string | number): boolean {
+    const v = expandStateMap.value[rowKey]
+    return v === undefined ? (defaultExpanded?.value ?? false) : v
+  }
+
+  /** 切换某行的展开/折叠状态 */
+  function toggleRowExpand(row: Record<string, unknown>): void {
+    const key = getRowKey(row)
+    expandStateMap.value[key] = !isRowExpanded(key)
+  }
+
+  /** 批量设置所有行的展开状态 */
+  function setAllExpanded(expanded: boolean): void {
+    const next: Record<string | number, boolean> = {}
+    for (const row of tableData.value) {
+      next[getRowKey(row)] = expanded
+    }
+    expandStateMap.value = next
+  }
+
   const parentColumns = computed(() =>
     columns.value.filter((c) => c.children && c.children.length > 0)
   )
@@ -28,7 +54,9 @@ export function useRowExpand(
     new Set(columns.value.map((c) => c.dataIndex))
   )
 
-  const expandedRows = computed<ExpandedRow[]>(() => {
+  // 构建展开行；respectCollapse 为 true 时遵循折叠状态（仅渲染首行），
+  // 为 false 时始终展开全部子行（用于统计等需要覆盖全部数据的场景）。
+  function buildExpandedRows(respectCollapse: boolean): ExpandedRow[] {
     const result: ExpandedRow[] = []
     for (let rowIdx = 0; rowIdx < tableData.value.length; rowIdx++) {
       const row = tableData.value[rowIdx]!
@@ -44,7 +72,13 @@ export function useRowExpand(
       }
 
       const groupKey = `group-${getRowKey(row)}`
-      for (let i = 0; i < maxSubRows; i++) {
+      const realSubRows = maxSubRows
+      const expanded = isRowExpanded(getRowKey(row))
+      const canCollapse = !!collapsible?.value && realSubRows > 1
+      // 折叠且未展开时仅渲染首行，其余隐藏
+      const renderedSubRows = respectCollapse && canCollapse && !expanded ? 1 : realSubRows
+
+      for (let i = 0; i < renderedSubRows; i++) {
         const subRowDataMap: Record<string, Record<string, unknown> | undefined> = {}
         for (const pCol of parentColumns.value) {
           const arr = arrayDataMap[pCol.dataIndex]
@@ -54,14 +88,24 @@ export function useRowExpand(
           originalRow: row,
           originalIndex: rowIdx,
           subRowIndex: i,
-          totalSubRows: maxSubRows,
+          totalSubRows: renderedSubRows,
+          realTotalSubRows: realSubRows,
+          collapsible: canCollapse,
+          expanded,
           subRowDataMap,
           groupKey,
         })
       }
     }
     return result
-  })
+  }
+
+  // 实际渲染用（遵循折叠状态）
+  const expandedRows = computed<ExpandedRow[]>(() => buildExpandedRows(true))
+
+  // 统计用（始终包含全部子行，不受折叠状态影响）
+  const fullExpandedRows = computed<ExpandedRow[]>(() => buildExpandedRows(false))
+
 
   function shouldRenderCell(col: LeafColumn, expandedRow: ExpandedRow): boolean {
     if (col._parentDataIndex && arrayParentDataIndexes.value.has(col._parentDataIndex)) {
@@ -130,11 +174,15 @@ export function useRowExpand(
 
   return {
     expandedRows,
+    fullExpandedRows,
     shouldRenderCell,
     getRowSpan,
     resolveCellValue,
     isObjectValue,
     getObjectFields,
     formatCellValue,
+    isRowExpanded,
+    toggleRowExpand,
+    setAllExpanded,
   }
 }

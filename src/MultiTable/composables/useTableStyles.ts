@@ -36,6 +36,7 @@ export function useTableStyles(
     applyStyle('--table-row-hover-bg', props.rowHoverBg)
     applyStyle('--table-row-selected-bg', props.highlightSlectedRow ? props.highlightSlectedColor : undefined)
 
+
     if (props.height) style['--table-container-height'] = typeof props.height === 'number' ? `${props.height}px` : props.height
     if (props.maxHeight) style['--table-container-max-height'] = typeof props.maxHeight === 'number' ? `${props.maxHeight}px` : props.maxHeight
     if (props.borderColor) style['--table-border-color'] = props.borderColor
@@ -154,6 +155,35 @@ export function useTableStyles(
     return { ...style, ...userConfigCellStyle }
   }
 
+  function getSummaryCellStyle(col: LeafColumn) {
+    const width = getEffectiveWidth(col.dataIndex, col.width ?? 120)
+    const style: Record<string, string> = {
+      width: width + 'px',
+      minWidth: width + 'px',
+      maxWidth: width + 'px',
+      textAlign: col.align || 'left',
+    }
+    if (!props.border) { style.borderRight = 'none' }
+    if (col.fixed === 'left') {
+      style.position = 'sticky'
+      style.left = getLeftOffset(col.dataIndex) + 'px'
+      style.zIndex = '4'
+    } else if (col.fixed === 'right') {
+      style.position = 'sticky'
+      style.right = (function () {
+        const idx = leafColumns.value.findIndex((c) => c.dataIndex === col.dataIndex)
+        let offset = 0
+        for (let i = leafColumns.value.length - 1; i > idx; i--) {
+          const c = leafColumns.value[i]!
+          if (c.fixed === 'right') offset += getEffectiveWidth(c.dataIndex, c.width ?? 120)
+        }
+        return offset + 'px'
+      })()
+      style.zIndex = '4'
+    }
+    return style
+  }
+
   return {
     tableConfigStyle,
     leftFixedWidth,
@@ -162,5 +192,6 @@ export function useTableStyles(
     hasRightScroll,
     getHeaderCellStyle,
     getCellStyle,
+    getSummaryCellStyle,
   }
 }

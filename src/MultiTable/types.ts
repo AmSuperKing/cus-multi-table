@@ -15,7 +15,7 @@ export interface MultiTableProps {
   headerRowClassName?: string | ((row: HeaderRow, rowIndex: number, rows: HeaderRow[]) => string)
   headerRowStyle?: CSSProperties | ((row: HeaderRow, rowIndex: number, rows: HeaderRow[]) => CSSProperties)
   headerCellClassName?: string | ((column: FlatColumn, colIndex: number, row: HeaderRow, rowIndex: number, rows: HeaderRow[]) => string)
-  headerCellStyle?: CSSProperties | ((cell: FlatColumn, cellIndex: number, row: HeaderRow, rowIndex: number, rows: HeaderRow[]) => CSSProperties)
+  headerCellStyle?: CSSProperties | ((cell: FlatColumn, cellIndex: number, row: HeaderRow,  rowIndex: number, rows: HeaderRow[]) => CSSProperties)
   rowClassName?: string | ((row: Record<string, unknown>, rowIndex: number, expandedRow: ExpandedRow, expandedRows: ExpandedRow[]) => string)
   rowStyle?: CSSProperties | ((row: Record<string, unknown>, rowIndex: number, expandedRow: ExpandedRow, expandedRows: ExpandedRow[]) => CSSProperties)
   rowCellClassName?: string | ((column: LeafColumn, cols: LeafColumn[], row: ExpandedRow, rows: ExpandedRow[]) => string)
@@ -39,10 +39,29 @@ export interface MultiTableProps {
   indexColumnWidth?: number
   showSummary?: boolean
   summary?: string
-  summaryFitTableContentWith?: boolean
+  summaryFitTableContentWidth?: boolean
+  summaryMethod?: (leafColumns: LeafColumn[], expandedRows: ExpandedRow[]) => Record<string, string | number>
+  /**
+   * 需要统计的列：
+   *  - 不传：默认统计所有可解析为数值的列。
+   *  - 传入数组时，每一项为对应列的字段 key：
+   *      · 顶层列：直接使用 dataIndex 字符串，如 'paidAmount'。
+   *      · 子列：使用 [父列dataIndex, 子列dataIndex] 数组形式，以区分父级行与子行，
+   *        如 ['commissionDetail', 'baseCommission']。
+   *  - 若指定列对应数据非数值，则忽略（该列不显示统计值）。
+   */
+  summaryColumns?: (string | string[])[]
   selectableProps?: (row: Record<string, unknown>) => boolean
   cellTextEllipsis?: boolean
+  /** 是否允许折叠/展开由数组渲染出的子行（子行过多时可折叠以便阅读） */
+  collapsibleSubRow?: boolean
+  /** 开启折叠时，子行默认是否展开（默认 false，即默认折叠只展示首行） */
+  defaultSubRowExpanded?: boolean
+  /** 折叠/展开列宽度 */
+  expandColumnWidth?: number
 }
+
+export type SortOrder = 'asc' | 'desc' | null
 
 export interface MultiTableEvent {
   (e: 'update:selectedRowKeys', keys: (string | number)[]): void
@@ -58,6 +77,7 @@ export interface MultiTableEvent {
   (e: 'cell-mouseenter', cellInfo: Record<string, unknown>, row: Record<string, unknown>): void
   (e: 'cell-mouseleave', cellInfo: Record<string, unknown>, row: Record<string, unknown>): void
   (e: 'scroll', scrollEvent: Event): void
+  (e: 'sort-change', dataIndex: string, order: SortOrder): void
 }
 
 export interface ColumnConfig {
@@ -66,6 +86,7 @@ export interface ColumnConfig {
   width?: number
   fixed?: 'left' | 'right'
   resizable?: boolean
+  sortable?: boolean
   align?: 'left' | 'center' | 'right'
   children?: ColumnConfig[]
 }
@@ -101,6 +122,13 @@ export interface ExpandedRow {
   originalRow: Record<string, unknown>
   originalIndex: number
   subRowIndex: number
+  /** 实际渲染的子行数（折叠时为 1），用于单元格 rowspan 计算 */
   totalSubRows: number
+  /** 数组数据真实的子行总数（不受折叠影响），用于展示与判断是否可折叠 */
+  realTotalSubRows: number
+  /** 当前行组是否可折叠（开启折叠且真实子行数 > 1） */
+  collapsible: boolean
+  /** 当前行组是否处于展开状态 */
+  expanded: boolean
   subRowDataMap: Record<string, Record<string, unknown> | undefined>
 }
