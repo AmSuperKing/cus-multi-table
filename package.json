@@ -1,7 +1,7 @@
 {
   "name": "cus-multi-table",
   "type": "module",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "Multidimensional data render to table. A Vue 3 component with TypeScript built with Vite",
   "main": "dist/cus-multi-table.umd.js",
   "module": "dist/cus-multi-table.es.js",
