@@ -1,8 +1,30 @@
 // useTableStyles.ts
 import { computed, type Ref } from 'vue'
 import type { CSSProperties } from 'vue'
-import type {  MultiTableProps, FlatColumn, HeaderRow, LeafColumn, ExpandedRow } from '../types'
+import type { MultiTableProps, FlatColumn, HeaderRow, LeafColumn, ExpandedRow } from '../types'
 import { hexToRgba, rgbaToHex6, judgeColorBrightness } from '../colorUtils'
+
+type TableStylesReturnType = {
+  tableConfigStyle: Ref<Record<string, string>>
+  leftFixedWidth: Ref<number>
+  rightFixedWidth: Ref<number>
+  scrollbarWidth: Ref<number>
+  hasRightScroll: Ref<boolean>
+  getHeaderCellStyle: (
+    cell: FlatColumn,
+    cellIndex: number,
+    row: HeaderRow,
+    rowIndex: number,
+    rows: HeaderRow[],
+  ) => Record<string, string>
+  getCellStyle: (
+    col: LeafColumn,
+    cols: LeafColumn[],
+    row: ExpandedRow,
+    rows: ExpandedRow[],
+  ) => Record<string, string>
+  getSummaryCellStyle: (col: LeafColumn) => Record<string, string>
+}
 
 export function useTableStyles(
   props: MultiTableProps,
@@ -13,8 +35,8 @@ export function useTableStyles(
   containerRef: Ref<HTMLElement | undefined>,
   scrollLeft: Ref<number>,
   getEffectiveWidth: (dataIndex: string, defaultWidth: number) => number,
-  getLeftOffset: (dataIndex: string) => number
-) {
+  getLeftOffset: (dataIndex: string) => number,
+): TableStylesReturnType {
   const tableConfigStyle = computed(() => {
     const style: Record<string, string> = {}
 
@@ -28,7 +50,11 @@ export function useTableStyles(
     }
 
     const themeAlphaColor = props.theme ? rgbaToHex6(hexToRgba(props.theme, 0.055)) : ''
-    const applyStyle = (cssVar: string, propValue: string | undefined, fallbackValue: string = themeAlphaColor) => {
+    const applyStyle = (
+      cssVar: string,
+      propValue: string | undefined,
+      fallbackValue: string = themeAlphaColor,
+    ) => {
       const value = propValue || fallbackValue
       if (value) style[cssVar] = value
     }
@@ -55,14 +81,20 @@ export function useTableStyles(
         applyStyle('--table-row-hover-text-color', '#333')
       }
     }
-    if (props.highlightSlectedRow && props.highlightSlectedColor) applyStyle('--table-row-selected-bg', props.highlightSlectedColor)
+    if (props.highlightSlectedRow && props.highlightSlectedColor)
+      applyStyle('--table-row-selected-bg', props.highlightSlectedColor)
 
-    if (props.height) style['--table-container-height'] = typeof props.height === 'number' ? `${props.height}px` : props.height
-    if (props.maxHeight) style['--table-container-max-height'] = typeof props.maxHeight === 'number' ? `${props.maxHeight}px` : props.maxHeight
+    if (props.height)
+      style['--table-container-height'] =
+        typeof props.height === 'number' ? `${props.height}px` : props.height
+    if (props.maxHeight)
+      style['--table-container-max-height'] =
+        typeof props.maxHeight === 'number' ? `${props.maxHeight}px` : props.maxHeight
     if (props.borderColor) style['--table-border-color'] = props.borderColor
     if (props.fixedColumnBg) style['--table-fixed-column-bg'] = props.fixedColumnBg
     if (props.clickRowToSelect) style['--table-row-cursor'] = 'pointer'
-    if (props.selectorBorderColor) style['--table-selector-border-color'] = props.selectorBorderColor
+    if (props.selectorBorderColor)
+      style['--table-selector-border-color'] = props.selectorBorderColor
     if (!props.border) style.border = 'none'
 
     if (!props.cellTextEllipsis) {
@@ -79,11 +111,17 @@ export function useTableStyles(
   })
 
   const leftFixedWidth = computed(() =>
-    leftFixedLeaves.value.reduce((sum, col) => sum + getEffectiveWidth(col.dataIndex, col.width ?? 120), 0)
+    leftFixedLeaves.value.reduce(
+      (sum, col) => sum + getEffectiveWidth(col.dataIndex, col.width ?? 120),
+      0,
+    ),
   )
 
   const rightFixedWidth = computed(() =>
-    rightFixedLeaves.value.reduce((sum, col) => sum + getEffectiveWidth(col.dataIndex, col.width ?? 120), 0)
+    rightFixedLeaves.value.reduce(
+      (sum, col) => sum + getEffectiveWidth(col.dataIndex, col.width ?? 120),
+      0,
+    ),
   )
 
   const scrollbarWidth = computed(() => {
@@ -100,9 +138,18 @@ export function useTableStyles(
     return el.scrollWidth - scrollLeft.value - el.clientWidth > 1
   })
 
-  function getHeaderCellStyle(cell: FlatColumn, cellIndex: number, row: HeaderRow, rowIndex: number, rows: HeaderRow[]) {
+  function getHeaderCellStyle(
+    cell: FlatColumn,
+    cellIndex: number,
+    row: HeaderRow,
+    rowIndex: number,
+    rows: HeaderRow[],
+  ) {
     const style: Record<string, string> = { textAlign: cell.align || 'left' }
-    if (!props.border) { style.borderRight = 'none'; style.borderBottom = 'none' }
+    if (!props.border) {
+      style.borderRight = 'none'
+      style.borderBottom = 'none'
+    }
     if (cell._isLeaf) {
       const w = getEffectiveWidth(cell.dataIndex, cell.width ?? 120)
       style.width = w + 'px'
@@ -137,7 +184,12 @@ export function useTableStyles(
     return { ...style, ...userConfigHeaderCellStyle }
   }
 
-  function getCellStyle(col: LeafColumn, cols: LeafColumn[], row: ExpandedRow, rows: ExpandedRow[]) {
+  function getCellStyle(
+    col: LeafColumn,
+    cols: LeafColumn[],
+    row: ExpandedRow,
+    rows: ExpandedRow[],
+  ) {
     const width = getEffectiveWidth(col.dataIndex, col.width ?? 120)
     const style: Record<string, string> = {
       width: width + 'px',
@@ -145,7 +197,10 @@ export function useTableStyles(
       maxWidth: width + 'px',
       textAlign: col.align || 'left',
     }
-    if (!props.border) { style.borderRight = 'none'; style.borderBottom = 'none' }
+    if (!props.border) {
+      style.borderRight = 'none'
+      style.borderBottom = 'none'
+    }
     if (col.fixed === 'left') {
       style.position = 'sticky'
       style.left = getLeftOffset(col.dataIndex) + 'px'
@@ -183,7 +238,9 @@ export function useTableStyles(
       maxWidth: width + 'px',
       textAlign: col.align || 'left',
     }
-    if (!props.border) { style.borderRight = 'none' }
+    if (!props.border) {
+      style.borderRight = 'none'
+    }
     if (col.fixed === 'left') {
       style.position = 'sticky'
       style.left = getLeftOffset(col.dataIndex) + 'px'
@@ -213,5 +270,5 @@ export function useTableStyles(
     getHeaderCellStyle,
     getCellStyle,
     getSummaryCellStyle,
-  }
+  } as TableStylesReturnType
 }
